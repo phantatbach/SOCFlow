@@ -1,15 +1,1 @@
 
-tokens_coordinates/__pycache__/get_coordinates.cpython-312.pyc
-tokens_coordinates/__pycache__/get_model_data.cpython-312.pyc
-tokens_coordinates/__pycache__/get_token_ids.cpython-312.pyc
-tokens_coordinates/time_final_no_det-time.bound3-3TIME.PPMIweight.LENGTH5000.SOCPOSNVAA.tsne.30.tsv
-tokens_coordinates/time_final_no_det.tsne.30.tsv
-tokens_coordinates/time_final_no_det.variables.tsv
-tokens_coordinates/token_coordinates.ipynb
-soc_analysis/time.bound3-3TIME.PPMIweight.LENGTH5000.SOCPOSNVAA.tcmx.soc.pac
-soc_analysis/top_77_time_3_SOCs.csv
-soc_analysis/top_100_time_3_SOCs.csv
-soc_analysis/time_3_SOCs.csv
-soc_analysis/time_3_context.csv
-soc_analysis/soc_analysis.ipynb
-soc_analysis/__pycache__/soc_analysis.cpython-312.pyc

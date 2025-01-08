@@ -10,7 +10,7 @@ from dash import dcc, html, Output, Input, State
 
 def load_data(token, model):
     # Load the data
-    data = f'{token}-{model}.tsne.30.tsv'
+    data = f'../input/{token}-{model}.tsne.30.tsv'
     df = pd.read_csv(data, sep='\t', header=0, names=['_id', 'x', 'y', 'senses'])
     
     # Ensure x and y are numeric
