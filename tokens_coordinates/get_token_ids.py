@@ -73,8 +73,8 @@ def create_app(token, model):
     def display_selected_tokens(selectedData):
         if selectedData is None:
             return "No tokens selected."
-        # Extract the token IDs from the selected points
-        selected_tokens = [point['hovertext'] for point in selectedData['points']]
+        # Extract the token IDs from the selected points and add single quotes
+        selected_tokens = [f"'{point['hovertext']}'" for point in selectedData['points']]
         return f"Selected Tokens: {', '.join(selected_tokens)}"
 
     # Define callback to clear the selection box completely
@@ -94,3 +94,4 @@ def create_app(token, model):
 def get_token_ids(token, model):
     app = create_app(token, model)
     app.run_server(debug=True)
+    print('Open the app in your browser (http://127.0.0.1:8050).')
