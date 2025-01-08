@@ -10,7 +10,7 @@ class SOCAnalyser:
         self.sense = None
 
     def get_context(self, token, sense, token_list):
-        context_df = pd.read_csv(f'../input/{token}.variables.tsv', header=0, sep='\t')
+        context_df = pd.read_csv(f'./input/{token}.variables.tsv', header=0, sep='\t')
         # Filter the DataFrame to include only rows where _id is in token_list
         context_df = context_df[context_df['_id'].isin(token_list)]
 
@@ -21,7 +21,7 @@ class SOCAnalyser:
         context_df.columns = ['_id', '_ctxt.raw']
 
         # Display or process the resulting DataFrame
-        context_df.to_csv(f'../output/{token}-{sense}_context.csv', sep=',', index=False)
+        context_df.to_csv(f'./output/{token}-{sense}_context.csv', sep=',', index=False)
         print(f'Context for {token}-{sense} extracted.')
 
     def elbow_finder(self, sense):
@@ -33,7 +33,7 @@ class SOCAnalyser:
             sense (str): Name of the sense, used to locate the corresponding CSV file.
         """
         # Read the data
-        soc_df = pd.read_csv(f'../input/{sense}_SOCs.csv', header=0, index_col=0)
+        soc_df = pd.read_csv(f'./input/{sense}_SOCs.csv', header=0, index_col=0)
 
         # Sum all the association scores by rows in the dataframe
         self.assoc_total = soc_df.sum(axis=0).sort_values(ascending=False)
@@ -83,7 +83,7 @@ class SOCAnalyser:
         top_n_df.columns = ['SOC', 'Association Score']
 
         # Save to CSV
-        top_n_df.to_csv(f'../output/top_{n}-{self.sense}_SOCs.csv', sep=',', index=False)
+        top_n_df.to_csv(f'./output/top_{n}-{self.sense}_SOCs.csv', sep=',', index=False)
         print(f'Top {n} SOCs extracted.')
 
         # Calculate angles for even distribution of SOCs
