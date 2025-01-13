@@ -3,14 +3,29 @@ import matplotlib.pyplot as plt
 import numpy as np
 from kneed import KneeLocator
 import plotly.graph_objects as go
+import os
 
 class SOCAnalyser:
     def __init__(self):
         self.assoc_total = None
         self.sense = None
 
-    def get_context(self, token, sense, token_list):
-        context_df = pd.read_csv(f'./input/{token}.variables.tsv', header=0, sep='\t')
+    def get_context(self, token, sense, token_list, input_folder, output_folder):
+        """
+        Extracts the context for the given token and sense from the variables.tsv file.
+
+        Parameters:
+            token (str): The token for which to extract the context.
+            sense (str): The sense for which to extract the context.
+            token_list (list): List of token IDs to filter the context by.
+            input_folder (str): Input folder containing the variables.tsv file.
+            output_folder (str): Output folder to write the extracted context to.
+
+        Returns:
+            None
+        """
+        input_file = os.path.join(input_folder, f'{token}.variables.tsv')
+        context_df = pd.read_csv(input_file, header=0, sep='\t')
         # Filter the DataFrame to include only rows where _id is in token_list
         context_df = context_df[context_df['_id'].isin(token_list)]
 
@@ -21,19 +36,23 @@ class SOCAnalyser:
         context_df.columns = ['_id', '_ctxt.raw']
 
         # Display or process the resulting DataFrame
-        context_df.to_csv(f'./output/{token}-{sense}_context.csv', sep=',', index=False)
+        output_file = os.path.join(output_folder, f'{token}-{sense}_context.csv')
+        context_df.to_csv(output_file, sep=',', index=False)
         print(f'Context for {token}-{sense} extracted.')
 
-    def elbow_finder(self, sense):
+    def elbow_finder(self, sense, sub_senSOC_file):
         """
-        Identifies the elbow point in the distribution of association scores for SOCs
-        and saves the association totals and sense in the class.
+        Finds the elbow point in the association scores of the given sense.
 
-        Args:
-            sense (str): Name of the sense, used to locate the corresponding CSV file.
+        Parameters:
+            sense (str): The sense for which to find the elbow point.
+            sub_senSOC_file (str): The file containing the submatrix of the given sense.
+
+        Returns:
+            None
         """
         # Read the data
-        soc_df = pd.read_csv(f'./input/{sense}_SOCs.csv', header=0, index_col=0)
+        soc_df = pd.read_csv(sub_senSOC_file, header=0, index_col=0)
 
         # Sum all the association scores by rows in the dataframe
         self.assoc_total = soc_df.sum(axis=0).sort_values(ascending=False)
@@ -67,12 +86,17 @@ class SOCAnalyser:
         plt.tight_layout()
         plt.show()
 
-    def soc_dist_vis(self, n):
+    def soc_dist_vis(self, n, sub_senSOC, output_folder):
         """
-        Visualizes the top N SOCs in a radial plot with association scores determining the radial distance.
+        Visualizes the association scores of the top N SOCs in a radial graph.
 
-        Args:
-            n (int): Number of top SOCs to visualize.
+        Parameters:
+            n (int): The number of top SOCs to visualize.
+            sub_senSOC (str): The submatrix of the sense for which to visualize.
+            output_folder (str): The folder where the visualization is saved.
+
+        Returns:
+            None
         """
         if self.assoc_total is None or self.sense is None:
             raise ValueError("You must run `elbow_finder` first to set `assoc_total` and `sense`.")
@@ -83,15 +107,21 @@ class SOCAnalyser:
         top_n_df.columns = ['SOC', 'Association Score']
 
         # Save to CSV
-        top_n_df.to_csv(f'./output/top_{n}-{self.sense}_SOCs.csv', sep=',', index=False)
-        print(f'Top {n} SOCs extracted.')
+        os.makedirs(output_folder, exist_ok=True)
+        output_file = os.path.join(output_folder, f'top_{n}-{sub_senSOC}_SOCs.csv')
+        top_n_df.to_csv(output_file, sep=',', index=False)
+        print(f'Top {n} SOCs extracted and saved to: {output_file}')
 
         # Calculate angles for even distribution of SOCs
         angles = np.linspace(0, 2 * np.pi, n, endpoint=False)
 
-        # Calculate x and y coordinates for each SOC
-        top_n_df['x'] = top_n_df['Association Score'] * np.cos(angles)
-        top_n_df['y'] = top_n_df['Association Score'] * np.sin(angles)
+        # Calculate inverse distances for plotting (higher scores = closer to the center)
+        max_score = top_n_df['Association Score'].max()
+        top_n_df['distance'] = max_score / top_n_df['Association Score']  # Inverse proportional distance
+
+        # Calculate x and y coordinates based on inverse distance
+        top_n_df['x'] = top_n_df['distance'] * np.cos(angles)
+        top_n_df['y'] = top_n_df['distance'] * np.sin(angles)
 
         # Create a Plotly scatter plot
         fig = go.Figure()
@@ -104,25 +134,31 @@ class SOCAnalyser:
             marker=dict(size=20, color='red'),
             text=[self.sense],
             textposition='top center',
-            name='Sense'
+            name='Sense',
+            hoverinfo='text',  # Disable x and y in hover
         ))
 
-        # Add the SOCs
+        # Add the SOCs with raw association scores displayed in hover information
         fig.add_trace(go.Scatter(
-            x=top_n_df['x'],
-            y=top_n_df['y'],
-            mode='markers+text',
-            marker=dict(size=10, color='blue'),
-            text=top_n_df['SOC'],
-            textposition='top center',
-            name='SOCs'
+        x=top_n_df['x'],
+        y=top_n_df['y'],
+        mode='markers+text',
+        marker=dict(size=10, color='blue'),
+        text=top_n_df['SOC'],  # SOC names
+        customdata=np.stack((top_n_df['Association Score'], top_n_df['distance']), axis=-1),  # Raw score and inverse distance
+        hovertemplate=(
+            '<b>SOC:</b> %{text}<br>'
+            '<b>Raw Association Score:</b> %{customdata[0]:.4f}<br>'
+            '<b>Distance (Inverse):</b> %{customdata[1]:.4f}'
+        ),
+        name='SOCs'
         ))
 
         # Add concentric reference circles
-        max_radius = top_n_df['Association Score'].max()
+        max_distance = max_score / top_n_df['Association Score'].min()  # Furthest point (lowest score)
         circle_steps = 5  # Number of circles
         for i in range(1, circle_steps + 1):
-            radius = max_radius * (i / circle_steps)
+            radius = max_distance * (i / circle_steps)
             theta = np.linspace(0, 2 * np.pi, 100)
             x_circle = radius * np.cos(theta)
             y_circle = radius * np.sin(theta)
@@ -162,4 +198,3 @@ class SOCAnalyser:
 
         # Show the plot
         fig.show()
-
