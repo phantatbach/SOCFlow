@@ -19,7 +19,11 @@ This workflow is used to explore the second order dimensions for semantic analys
 - SOC_Analysis
     - First, get the sub-matrix of the selected tokens using nephosem.
     - You could also filter by POS tags
+
     - Analyse the SOC dimensions.
-        - elbow_finder sums all the association scores of the SOCs to the sense/region then find the elbow point.
+        - There are 2 ways to analyse the clouds: sum and avg
+            - sum will sum all the association scores of the SOCs
+            - avg will sum all the association scores of the SOCs but then divided by the number of tokens as a way to normalise/for the prototypical instance
+        - elbow_finder do either one of the 2 then find the elbow point.
         - soc_dist_vis visualises the 'distance' of the top n SOCs to the sense/region.
         - get_context extracts the raw contexts of the tokens of the sense/region for further analysis.

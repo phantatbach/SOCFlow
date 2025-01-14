@@ -25,42 +25,71 @@ class SOCAnalyser:
             None
         """
         input_file = os.path.join(input_folder, f'{token}.variables.tsv')
+
+        # Check if input file exists
+        if not os.path.exists(input_file):
+            print(f"File not found: {input_file}")
+            return
+
+        # Ensure token_list is a list
+        if not isinstance(token_list, list):
+            raise TypeError("token_list must be a list of token IDs.")
+
+        # Read the input file
         context_df = pd.read_csv(input_file, header=0, sep='\t')
+
         # Filter the DataFrame to include only rows where _id is in token_list
         context_df = context_df[context_df['_id'].isin(token_list)]
+
+        # Handle empty DataFrame
+        if context_df.empty:
+            print(f"No matching records found for token '{token}' and sense '{sense}'.")
+            return
 
         # Select only the _id and _ctxt.raw columns
         context_df = context_df[['_id', '_ctxt.raw']]
 
-        # Assign the column names
-        context_df.columns = ['_id', '_ctxt.raw']
+        # Ensure the output folder exists
+        os.makedirs(output_folder, exist_ok=True)
 
-        # Display or process the resulting DataFrame
+        # Write the resulting DataFrame to a CSV file
         output_file = os.path.join(output_folder, f'{token}-{sense}_context.csv')
         context_df.to_csv(output_file, sep=',', index=False)
-        print(f'Context for {token}-{sense} extracted.')
+        print(f"Context for {token}-{sense} extracted and saved to {output_file}.")
 
-    def elbow_finder(self, sense, sub_senSOC_file):
+    def elbow_finder(self, sense, sub_senSOC_file, mode):
         """
-        Finds the elbow point in the association scores of the given sense.
+        Finds the elbow point in the association scores for a given sense.
+
+        This method calculates the sum and average of association scores from a specified submatrix
+        and uses the Kneedle algorithm to determine the elbow point, which indicates a natural cutoff
+        point in the data. It visualizes the curve with the detected elbow point.
 
         Parameters:
             sense (str): The sense for which to find the elbow point.
-            sub_senSOC_file (str): The file containing the submatrix of the given sense.
+            sub_senSOC_file (str): The file containing the submatrix of association scores.
+            mode (str): The mode to use for analysis. Options are 'sum' for total scores and 'avg'
+                        for average scores.
 
         Returns:
             None
         """
-        # Read the data
-        soc_df = pd.read_csv(sub_senSOC_file, header=0, index_col=0)
+        SOC_df = pd.read_csv(sub_senSOC_file, header=0, index_col=0)
 
-        # Sum all the association scores by rows in the dataframe
-        self.assoc_total = soc_df.sum(axis=0).sort_values(ascending=False)
+        # Calculate the sum and average of all the association scores by rows in the dataframe
+        self.assoc_total = SOC_df.sum(axis=0).sort_values(ascending=False)
+        self.assoc_avg = SOC_df.mean(axis=0).sort_values(ascending=False)
         self.sense = sense
 
-        # Extract x and y values for the curve
-        x = np.arange(len(self.assoc_total))
-        y = self.assoc_total.values
+        if mode == 'sum':
+            # Extract x and y values for the curve
+            x = np.arange(len(self.assoc_total))
+            y = self.assoc_total.values
+
+        elif mode == 'avg':
+            # Divide the sum by the number of SOCs
+            x = np.arange(len(self.assoc_total))
+            y = self.assoc_avg.values         
 
         # Use the Kneedle algorithm to find the elbow
         knee = KneeLocator(x, y, curve="convex", direction="decreasing")
@@ -68,7 +97,10 @@ class SOCAnalyser:
         # Print the elbow point
         if knee.knee is not None:
             print(f"Elbow index: {knee.knee + 1}")
-            print(f"Elbow SOC: {self.assoc_total.index[knee.knee]} (Association Score: {self.assoc_total.values[knee.knee]})")
+            if mode == 'sum':
+                print(f"Elbow SOC: {self.assoc_total.index[knee.knee]} (Association Score: {self.assoc_total.values[knee.knee]})")
+            elif mode == 'avg':
+                print(f"Elbow SOC: {self.assoc_avg.index[knee.knee]} (Association Score: {self.assoc_avg.values[knee.knee]})")
         else:
             print("No elbow point detected.")
 
@@ -76,7 +108,7 @@ class SOCAnalyser:
         plt.figure(figsize=(12, 6))
         plt.plot(x, y, label='Association Scores', color='blue')
         if knee.knee is not None:
-            plt.axvline(x=knee.knee, color='red', linestyle='--', label=f'Elbow (Index: {knee.knee})')
+            plt.axvline(x=knee.knee, color='red', linestyle='--', label=f'Elbow (Index: {knee.knee + 1})')
             plt.scatter(knee.knee, y[knee.knee], color='red', s=100, label='Elbow Point')
         plt.title('Elbow Point', fontsize=16)
         plt.xlabel('Sorted SOCs', fontsize=14)
@@ -86,7 +118,7 @@ class SOCAnalyser:
         plt.tight_layout()
         plt.show()
 
-    def soc_dist_vis(self, n, sub_senSOC, output_folder):
+    def SOC_dist_vis(self, n, sub_senSOC, output_folder, mode):
         """
         Visualizes the association scores of the top N SOCs in a radial graph.
 
@@ -94,21 +126,31 @@ class SOCAnalyser:
             n (int): The number of top SOCs to visualize.
             sub_senSOC (str): The submatrix of the sense for which to visualize.
             output_folder (str): The folder where the visualization is saved.
+            mode (str): The mode to use for analysis. Options are 'sum' for total scores and 'avg'
+                        for average scores.
 
         Returns:
             None
         """
-        if self.assoc_total is None or self.sense is None:
-            raise ValueError("You must run `elbow_finder` first to set `assoc_total` and `sense`.")
 
-        # Get a DataFrame of top N SOCs
-        top_n = self.assoc_total.head(n).to_frame()
+        if mode == 'sum':
+            if self.assoc_total is None or self.sense is None:
+                raise ValueError("You must run elbow_finder first to set assoc_total and sense.")
+            # Get a DataFrame of top N SOCs
+            top_n = self.assoc_total.head(n).to_frame()
+        
+        elif mode == 'avg':
+            if self.assoc_avg is None or self.sense is None:
+                raise ValueError("You must run elbow_finder first to set assoc_avg and sense.")
+            # Get a DataFrame of top N SOCs
+            top_n = self.assoc_avg.head(n).to_frame()
+
         top_n_df = top_n.reset_index()
         top_n_df.columns = ['SOC', 'Association Score']
 
         # Save to CSV
         os.makedirs(output_folder, exist_ok=True)
-        output_file = os.path.join(output_folder, f'top_{n}-{sub_senSOC}_SOCs.csv')
+        output_file = os.path.join(output_folder, f'top_{n}-{sub_senSOC}-{mode}_SOCs.csv')
         top_n_df.to_csv(output_file, sep=',', index=False)
         print(f'Top {n} SOCs extracted and saved to: {output_file}')
 
@@ -198,3 +240,48 @@ class SOCAnalyser:
 
         # Show the plot
         fig.show()
+
+def get_POS_submtx(SenSOC_file, sub_SenSOC, POS_list, input_folder, sep=','):
+    """
+    Extracts a submatrix from a SOC matrix containing only the columns that match the specified POS tags.
+
+    Args:
+        SenSOC_file (str): Path to the SOC matrix file to be filtered.
+        sub_SenSOC (str): Name for the output submatrix file.
+        POS_list (list of str): List of Part-Of-Speech tags to filter the columns by.
+        input_folder (str): Directory where the output file will be saved.
+        sep (str): Separator used in the CSV file. Defaults to ','.
+    
+    Raises:
+        FileNotFoundError: If the specified SOC matrix file does not exist.
+        ValueError: If no columns match the specified POS tags.
+
+    Returns:
+        None: The function saves the filtered submatrix to a CSV file in the specified directory.
+    """
+    # Ensure input file exists
+    if not os.path.exists(SenSOC_file):
+        raise FileNotFoundError(f"Input file not found: {SenSOC_file}")
+    
+    # Load the SOC matrix
+    SenSOC_matrix = pd.read_csv(SenSOC_file, sep=sep, header=0)
+
+    # If POS_list is empty, log a warning and return the original matrix
+    if not POS_list:
+        print("Warning: POS_list is empty. No filtering applied.")
+        return
+
+    # Filter columns based on POS tags
+    column_names = [
+        column for POS in POS_list for column in SenSOC_matrix.columns if POS in column
+    ]
+
+    # Ensure at least one column matches
+    if not column_names:
+        raise ValueError(f"No columns found matching POS tags: {POS_list}")
+    
+    output_file = os.path.join(input_folder, f'{sub_SenSOC}_SOCs.csv')
+
+    # Save the filtered submatrix
+    SenSOC_matrix[column_names].to_csv(output_file, sep=',')
+    print(f"Filtered SOC matrix saved to: {output_file}")
