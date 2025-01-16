@@ -9,6 +9,17 @@ import dash
 from dash import dcc, html, Output, Input, State
 import os
 
+def load_data(token, model, input_folder):
+    # Load the data
+    input_file = os.path.join(input_folder, f'{token}-{model}.tsne.30.tsv')
+    df = pd.read_csv(input_file, sep='\t', header=0, names=['_id', 'x', 'y', 'senses'])
+    
+    # Ensure x and y are numeric
+    df['x'] = pd.to_numeric(df['x'], errors='coerce')
+    df['y'] = pd.to_numeric(df['y'], errors='coerce')
+    df = df.dropna(subset=['x', 'y'])  # Remove rows with invalid x or y
+    return df
+
 def create_app(token, model, input_folder):
     """
     Create a Dash app that displays an interactive scatter plot of the tokens and their senses in a given model.
@@ -120,3 +131,9 @@ def create_app(token, model, input_folder):
         return f"Selected Tokens: {', '.join(sorted(selected_tokens))}", dash.no_update, dash.no_update
 
     return app
+
+# Run the app
+def get_token_ids(token, model, input_folder):
+    app = create_app(token, model, input_folder)
+    app.run_server(debug=True)
+    print('Open the app in your browser (http://127.0.0.1:8050).')
