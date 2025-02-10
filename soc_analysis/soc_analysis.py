@@ -118,7 +118,7 @@ class SOCAnalyser:
         plt.tight_layout()
         plt.show()
 
-    def SOC_dist_vis(self, n, sub_regSOC, output_folder, mode):
+    def SOC_dist_vis(self, n, sub_regSOC, output_folder, mode, POS_name=None):
         """
         Visualizes the association scores of the top N SOCs in a radial graph.
 
@@ -150,7 +150,10 @@ class SOCAnalyser:
 
         # Save to CSV
         os.makedirs(output_folder, exist_ok=True)
-        output_file = os.path.join(output_folder, f'top_{n}-{sub_regSOC}-{mode}_SOCs.csv')
+        if POS_name is not None:
+            output_file = os.path.join(output_folder, f'top_{n}-{sub_regSOC}-{mode}-{POS_name}_SOCs.csv')
+        else:
+            output_file = os.path.join(output_folder, f'top_{n}-{sub_regSOC}-{mode}_SOCs.csv')
         top_n_df.to_csv(output_file, sep=',', index=False)
         print(f'Top {n} SOCs extracted and saved to: {output_file}')
 
