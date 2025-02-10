@@ -1,19 +1,13 @@
-# Running the App:
-# Save the code to a Python file (get_tokens_ids.py).
-# Run the file: python get_tokens_ids.py.
-# Open the app in your browser (http://127.0.0.1:8050).
-
 import pandas as pd
 import plotly.express as px
 import dash
-from dash import dcc, html, Output, Input, State
+from dash import dcc, html, Output, Input
 import os
 
 def load_data(token, model, input_folder):
-    # Load the data
     input_file = os.path.join(input_folder, f'{token}-{model}.tsne.30.tsv')
-    df = pd.read_csv(input_file, sep='\t', header=0, names=['_id', 'x', 'y', 'senses'])
-    
+    df = pd.read_csv(input_file, sep='\t')
+
     # Ensure x and y are numeric
     df['x'] = pd.to_numeric(df['x'], errors='coerce')
     df['y'] = pd.to_numeric(df['y'], errors='coerce')
@@ -21,24 +15,24 @@ def load_data(token, model, input_folder):
     return df
 
 def create_app(token, model, input_folder):
-    """
-    Create a Dash app that displays an interactive scatter plot of the tokens and their senses in a given model.
-    """
     df = load_data(token, model, input_folder)
 
-    def create_figure():
-        """
-        Create a scatter plot of the tokens and their senses in a given model.
-        """
+    # Identify all possible metadata columns (excluding '_id', 'x', and 'y')
+    metadata_columns = [col for col in df.columns if col not in ['_id', 'x', 'y']]
+
+    def create_figure(color_by=None, symbol_by=None):
         fig = px.scatter(
             df,
             x='x',
             y='y',
-            color='senses',
+            color=color_by if color_by else None,
+            symbol=symbol_by if symbol_by else None,
             title=f'Interactive Token Visualization of {token}-{model}',
             labels={'x': 'X-Axis', 'y': 'Y-Axis'},
-            hover_name='_id'
+            hover_name='_id',
+            color_discrete_sequence=['blue'] if not color_by else None
         )
+
         fig.update_layout(
             xaxis=dict(scaleanchor="y", scaleratio=1),
             yaxis=dict(scaleanchor="x"),
@@ -47,15 +41,14 @@ def create_app(token, model, input_folder):
         )
         return fig
 
-    fig = create_figure()
-
     # Initialize the Dash app
     app = dash.Dash(__name__)
 
+    # Layout of the app
     app.layout = html.Div([
         dcc.Graph(
             id='scatter-plot',
-            figure=fig,
+            figure=create_figure(),
             config={'scrollZoom': True},
             style={'display': 'inline-block', 'width': '1000px', 'height': '1000px'}
         ),
@@ -63,77 +56,91 @@ def create_app(token, model, input_folder):
             id='selected-tokens',
             style={'margin-top': '20px', 'font-size': '16px'}
         ),
+        dcc.Textarea(
+            id='token-list',
+            style={'width': '100%', 'height': '200px', 'margin-top': '10px'},
+            placeholder='List of selected token IDs will appear here...'
+        ),
         html.Div([
             dcc.Dropdown(
-                id='sense-dropdown',
-                options=[{'label': sense, 'value': sense} for sense in sorted(df['senses'].unique())],
-                placeholder="Select a sense",
+                id='color-dropdown',
+                options=[{'label': col, 'value': col} for col in metadata_columns],
+                placeholder="Select a column for colour coding",
                 style={'width': '300px'}
+            ),
+            dcc.Dropdown(
+                id='shape-dropdown',
+                options=[{'label': col, 'value': col} for col in metadata_columns],
+                placeholder="Select a column for shape coding",
+                style={'width': '300px', 'margin-top': '10px'}
             )
         ], style={'margin-top': '20px'}),
         html.Button('Clear Selection', id='clear-button', n_clicks=0, style={'margin-top': '20px'})
     ])
 
-    # Callback to handle all updates: selected tokens and clear button
+    # Combined callback to handle updates for the scatter plot, token selection, and clear selection
     @app.callback(
-        [Output('selected-tokens', 'children'),
-         Output('scatter-plot', 'figure'),
-         Output('sense-dropdown', 'value')],
-
-        [Input('scatter-plot', 'selectedData'),
-         Input('sense-dropdown', 'value'),
+        [Output('scatter-plot', 'figure'),
+         Output('selected-tokens', 'children'),
+         Output('token-list', 'value')],
+        [Input('color-dropdown', 'value'),
+         Input('shape-dropdown', 'value'),
+         Input('scatter-plot', 'selectedData'),
          Input('clear-button', 'n_clicks')],
         prevent_initial_call=True
     )
-
-    def update_selected_tokens(selectedData, selected_sense, clear_clicks):
+    def update_app(color_by, shape_by, selectedData, clear_clicks):
         """
-        Update the selected tokens based on user interaction with the scatter plot and sense dropdown.
+        Update the scatter plot, selected tokens, and handle graph reset when the clear button is clicked.
 
         Parameters
         ----------
+        color_by : str
+            The column selected for colour coding.
+        shape_by : str
+            The column selected for shape coding.
         selectedData : dict
             Data representing the points selected by the user on the scatter plot.
-        selected_sense : str
-            The sense selected by the user from the dropdown menu.
         clear_clicks : int
             The number of times the 'Clear Selection' button has been clicked.
 
         Returns
         -------
+        dict
+            The updated figure for the scatter plot.
         str
             A message indicating the selected tokens.
-        dash.Figure
-            The updated figure for the scatter plot.
-        any
-            The updated value for the sense dropdown.
+        str
+            The full list of selected token IDs.
         """
-
-        # Handle clear button: Reset everything
         ctx = dash.callback_context
-        if ctx.triggered and 'clear-button' in ctx.triggered[0]['prop_id']:
-            return "No tokens selected.", create_figure(), None
 
+        # Check which input triggered the callback
+        if ctx.triggered:
+            trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+            # If the clear button was clicked, reset everything
+            if trigger_id == 'clear-button':
+                return create_figure(), "No tokens selected.", ""
+
+            # If metadata selection changed, update the figure without resetting selections
+            if trigger_id in ['color-dropdown', 'shape-dropdown']:
+                return create_figure(color_by=color_by, symbol_by=shape_by), dash.no_update, dash.no_update
+
+        # Handle token selection update
         selected_tokens = set()
-
-        # Add tokens from box selection
         if selectedData:
-            selected_tokens.update([f"'{point['hovertext']}'" for point in selectedData['points']])
-
-        # Add tokens from sense selection
-        if selected_sense:
-            tokens_with_sense = df.loc[df['senses'] == selected_sense, '_id'].astype(str)
-            selected_tokens.update(f"'{token}'" for token in tokens_with_sense)
+            selected_tokens.update([point['hovertext'] for point in selectedData['points']])
 
         if not selected_tokens:
-            return "No tokens selected.", dash.no_update, dash.no_update
-
-        return f"Selected Tokens: {', '.join(sorted(selected_tokens))}", dash.no_update, dash.no_update
+            return dash.no_update, "No tokens selected.", ""
+        
+        return dash.no_update, f"Selected Tokens: {len(selected_tokens)} tokens selected", ", ".join([f"'{token}'" for token in sorted(selected_tokens)])
 
     return app
 
 # Run the app
 def get_token_ids(token, model, input_folder):
     app = create_app(token, model, input_folder)
-    app.run_server(debug=True)
-    print('Open the app in your browser (http://127.0.0.1:8050).')
+    app.run_server(debug=True, port=1111)
+    print('Open the app in your browser (http://127.0.0.1:1111).')
