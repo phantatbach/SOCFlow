@@ -1,0 +1,35 @@
+---
+title: "Semcloud_HDBSCAN_explore"
+author: "Bách Phan Tất"
+date: "2025-02-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Open and read the RDS file
+
+```{r Open RDS}
+input_folder <- "./input"
+output_folder <- "./input"
+lemma <- "freedom"
+model <- "freedom.nobound3-3NVAA.PPMIno.LENGTH5000.SOCPOSNVAA"
+
+# Use file.path to join the path components
+RDS_file_path <- file.path(input_folder, paste0(lemma, ".RDS"))
+RDS_data <- readRDS(RDS_file_path)
+```
+
+## Extract the corresponding TSV of the model
+```{r Extract HDBSCAN}
+# Extract the 'coords' data
+output_file <- file.path(output_folder, paste0(model ,"_HDBSCAN_semcloud.tsv"))
+coords_data <- RDS_data[[model]][["coords"]]
+# Remove the 'cws' column
+coords_data_flattened <- coords_data[, !names(coords_data) %in% "cws"]
+
+# Write to TSV
+write.table(coords_data_flattened, output_file, row.names = FALSE, col.names = TRUE, sep = '\t', quote = FALSE)
+```

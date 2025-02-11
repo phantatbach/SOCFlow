@@ -151,9 +151,9 @@ class SOCAnalyser:
         # Save to CSV
         os.makedirs(output_folder, exist_ok=True)
         if POS_name is not None:
-            output_file = os.path.join(output_folder, f'top_{n}-{sub_regSOC}-{mode}-{POS_name}_SOCs.csv')
+            output_file = os.path.join(output_folder, f'{sub_regSOC}-{mode}-top_{n}-{POS_name}_SOCs.csv')
         else:
-            output_file = os.path.join(output_folder, f'top_{n}-{sub_regSOC}-{mode}_SOCs.csv')
+            output_file = os.path.join(output_folder, f'{sub_regSOC}-{mode}-top_{n}_SOCs.csv')
         top_n_df.to_csv(output_file, sep=',', index=False)
         print(f'Top {n} SOCs extracted and saved to: {output_file}')
 

@@ -4,8 +4,12 @@ import dash
 from dash import dcc, html, Output, Input
 import os
 
-def load_data(token, model, input_folder):
-    input_file = os.path.join(input_folder, f'{token}-{model}.tsne.30.tsv')
+def load_data(token, model, input_folder, mode=None):
+    if mode == 'nonoise':
+        input_file = os.path.join(input_folder, 'visualisation', f'no_noise-{token}-{model}.tsne.30.tsv')
+    else:
+        input_file = os.path.join(input_folder, 'visualisation', f'{token}-{model}.tsne.30.tsv')
+
     df = pd.read_csv(input_file, sep='\t')
 
     # Ensure x and y are numeric
@@ -14,11 +18,11 @@ def load_data(token, model, input_folder):
     df = df.dropna(subset=['x', 'y'])  # Remove rows with invalid x or y
     return df
 
-def create_app(token, model, input_folder):
-    df = load_data(token, model, input_folder)
+def create_app(token, model, input_folder, mode=None):
+    df = load_data(token, model, input_folder, mode=mode)
 
-    # Identify all possible metadata columns (excluding '_id', 'x', and 'y')
-    metadata_columns = [col for col in df.columns if col not in ['_id', 'x', 'y']]
+    # Identify all possible metadata columns (excluding '_id', 'x', 'y', '_memb_prob')
+    metadata_columns = [col for col in df.columns if col not in ['_id', 'x', 'y', 'membprob']]
 
     def create_figure(color_by=None, symbol_by=None):
         fig = px.scatter(
@@ -140,7 +144,7 @@ def create_app(token, model, input_folder):
     return app
 
 # Run the app
-def get_token_ids(token, model, input_folder):
-    app = create_app(token, model, input_folder)
-    app.run_server(debug=True, port=1111)
-    print('Open the app in your browser (http://127.0.0.1:1111).')
+def get_token_ids(token, model, input_folder, mode=None):
+    app = create_app(token, model, input_folder, mode=mode)
+    app.run_server(debug=True, port=5898)
+    print('Open the app in your browser (http://127.0.0.1:5898).')
