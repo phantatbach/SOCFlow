@@ -244,25 +244,22 @@ class SOCAnalyser:
         # Show the plot
         fig.show()
 
-def get_POS_submtx(RegSOC_file, sub_regSOC, POS_list, input_folder, sep=','):
+def get_POS_submtx(RegSOC_file, sub_regSOC, POS_list, output_folder, POS_name=None, sep=','):
     """
-    Extracts a submatrix from a SOC matrix containing only the columns that match the specified POS tags.
+    Filters the input SOC matrix to only include columns that match the POS tags provided.
 
-    Args:
-        RegSOC_file (str): Path to the SOC matrix file to be filtered.
-        sub_regSOC (str): Name for the output submatrix file.
-        POS_list (list of str): List of Part-Of-Speech tags to filter the columns by.
-        input_folder (str): Directory where the output file will be saved.
-        sep (str): Separator used in the CSV file. Defaults to ','.
-    
-    Raises:
-        FileNotFoundError: If the specified SOC matrix file does not exist.
-        ValueError: If no columns match the specified POS tags.
+    Parameters:
+        RegSOC_file (str): The input file path to the SOC matrix.
+        sub_regSOC (str): The name of the submatrix to generate.
+        POS_list (list): A list of POS tags to filter the columns by.
+        output_folder (str): The folder to save the filtered submatrix to.
+        POS_name (str): Optional. The name of the POS tag to append to the output filename.
+        sep (str): Optional. The separator used in the input file. Defaults to ','
 
     Returns:
-        None: The function saves the filtered submatrix to a CSV file in the specified directory.
+        None
     """
-    # Ensure input file exists
+    # Ensure the path exists
     if not os.path.exists(RegSOC_file):
         raise FileNotFoundError(f"Input file not found: {RegSOC_file}")
     
@@ -283,7 +280,10 @@ def get_POS_submtx(RegSOC_file, sub_regSOC, POS_list, input_folder, sep=','):
     if not column_names:
         raise ValueError(f"No columns found matching POS tags: {POS_list}")
     
-    output_file = os.path.join(input_folder, f'{sub_regSOC}_SOCs.csv')
+    if POS_name is not None:
+        output_file = os.path.join(output_folder, f'{sub_regSOC}_{POS_name}_SOCs.csv')
+    else:
+        output_file = os.path.join(output_folder, f'{sub_regSOC}_SOCs.csv')
 
     # Save the filtered submatrix
     RegSOC_matrix[column_names].to_csv(output_file, sep=',')
