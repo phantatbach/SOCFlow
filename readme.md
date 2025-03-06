@@ -1,5 +1,8 @@
 This workflow is used to explore the second order dimensions for semantic analysis. It was developed within the [Nephological Semantics project](https://www.arts.kuleuven.be/ling/qlvl/projects/current/nephological-semantics) at KU Leuven by [Bách Phan-Tất](https://phantatbach.github.io) as part of his PhD and with the collaboration of Dirk Geeraerts, Dirk Speelman, Kris Heylen, Stefano De Pascale and Ángela Maria Gomez Zuluaga.
 
+# Note:
+- The results of the experiments show that choosing SOCs based on pure aggregated scores is arbitrary. So now I am developing a new approach of dimensionality reduction/feature selection. All the experiments are saved in the main notebook.
+
 # Installation
 # Use
 - After running NephoSem, SemasioFlow and NephoVis, you should have a clear idea of what model you want to explore further.
